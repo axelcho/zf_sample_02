@@ -1,0 +1,125 @@
+<?php /** @var Zend\View\Renderer\PhpRenderer $this */ ?>
+<?php $this->placeHolder('headline')->set('Production Companies'); ?>
+<?php 
+Ini_set(‘display_errors’, ‘On’);
+error_reporting(E_ALL);
+?>
+
+<!-- Filter -->
+<div class="admin-filter">
+	<div class="admin-filter-group">
+		<div class="admin-filter-title">Search Companies (At least 3 characters):</div>
+		<input type="text" id="query" name="admin-filter-data" />
+	</div>
+	<div class = "admin-filter-group">
+		<div class="admin-filter-title">&nbsp;</div>
+		<input type="button" id="search" value = "Search" />	
+		<input type="button" id="reset" value="Reset" />	
+	</div>	
+	<div style="clear: both;"></div>
+</div>
+
+
+
+<!-- Content -->
+<div id="admin-production-companies-list">
+</div>
+
+
+<script type="text/javascript">
+var Search = {
+	Query: "",
+	Filters: [],
+	Limit: 0,
+	PerformSearch: null,
+	Searching: null,
+	LastSearch: {},
+
+	Go: function(page) {
+		if (!page || page === "undefined") {
+			// Collect our data
+			var query = $('input:text[name="admin-filter-data"]').val();
+			if (query.length <= 2) {
+				query = "";
+			}
+			// Save search
+			this.Query = query;
+
+			// Save filters
+			this.Filters = [];
+			$('input:checkbox[name="admin-filter-retrieve"]:checked').each(function(idx, val) {
+				Search.Filters.push($(val).val())
+			});
+
+			// Data to post
+			this.LastSearch = {
+				'query': this.Query,
+				'filters': this.Filters,
+				'limit': this.Limit,
+				'page': 1
+			};
+		}
+		else {
+			// Change to the new page
+			this.LastSearch.page = page;
+		}
+
+		// Kill any current searches
+		if (this.Searching) {
+			this.Searching.abort();
+			this.Searching = null;
+		}
+
+		// Perform the new search
+		$('#admin-production-companies-list').html('<?=str_replace("'", "\\'", $this->partial('/partial/loading.phtml'))?>');
+		this.Searching = $.ajax({
+			url: '<?=$this->basePath('/ajax?action=ProductionCompanies:lookupForAdmin')?>',
+			type: 'POST',
+			data: this.LastSearch,
+			dataType: 'html',
+			success: function(response) {
+				$('#admin-production-companies-list').html(response);
+			}
+		});
+	},
+
+	Clear: function() {
+		// Reset values		
+		$('#query').val('');
+		this.Query = "<?=Admin\Filter\ProductionCompanies::DEFAULT_SEARCH_TERM?>";
+		this.Filters = [];
+		this.Limit = <?=Admin\Filter\ProductionCompanies::DEFAULT_LIMIT?>;
+	
+		// Perform new search
+		this.Go();
+	},
+
+	Prepare: function(timeout) {
+		// If we're already pending a search, stop it
+		if (this.PerformSearch) {
+			clearTimeout(this.PerformSearch);
+			this.PerformSearch = null;
+		}
+		this.PerformSearch = setTimeout(function() {
+			Search.Go();
+		}, timeout || 0)
+	}
+};
+
+	$(function() {	
+		//click on search button
+		$('#search').click(function(){
+			Search.Go();
+		}).trigger('click');
+		
+		//defocus
+		$('#query').change(function(){
+			Search.Go();
+		}).trigger('change');
+		
+		//click on reset key
+		$('#reset').click(function() {
+			Search.Clear();
+		}).trigger('click');		
+	})
+</script>

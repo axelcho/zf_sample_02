@@ -1,0 +1,148 @@
+<?php /** @var Zend\View\Renderer\PhpRenderer $this */ ?>
+<?php /** @var Admin\ViewModel\Ajax\ProductCompanies $model */ ?>
+
+<div class="admin-filter">
+	<div class="admin-filter-group">
+		<div class="admin-filter-title">Rename Checked Company Names To:</div>
+		<input type="text" id="lookup" />
+	</div>
+	<div class="admin-filter-group">		
+		<div class="admin-filter-title">&nbsp;</div>
+		<input type="button" id = "rename" value="Rename" />		
+	</div>
+	<div style="clear: both;"></div>
+</div>
+
+<div class="admin-account-list-results">
+	Showing results <?=$model->pager->start?> - <?=$model->pager->end?> of approximately <?=$model->pager->max?>
+</div>
+
+<table class="tabular top">
+	<thead>
+		<tr>
+		    <th><input type='checkbox' id = 'checkall' />Check All</th>
+			<th>Id</th>
+			<th>Name</th>			
+		</tr>
+	</thead>
+	<tbody>
+		<?php foreach ($model->results as $company) { ?>
+		<tr>
+			<td><input type = 'checkbox' id = '<?=$company->ProductionCompanyID.'%%'.htmlspecialchars($company->Name) ?>' class='checker' />  </td>
+			<td><?=$company->ProductionCompanyID?></td>
+			<td><?=htmlspecialchars($company->Name)?></td>				
+		</tr>
+		<?php } ?>		
+	</tbody>
+</table>
+
+<?php if ($model->pager->totalPages > 1) { ?>
+	<div class="admin-account-list-pages pager">
+		<?php if ($model->pager->hasPrevious) { ?>
+			<span class="pager-first"><a href="javascript:void(0);" onclick="Search.Go(1);">&lt;&lt;</a></span>
+			<span class="pager-previous"><a href="javascript:void(0);" onclick="Search.Go(<?=$model->pager->page-1?>);">&lt;</a></span>
+		<?php } ?>
+		<?php foreach (range($model->pager->first, $model->pager->last) as $page) { ?>
+			<?php if ($page != $model->pager->page) { ?>
+				<span class="pager-page"><a href="javascript:void(0);" onclick="Search.Go(<?=$page?>);"><?=$page?></a></span>
+			<?php } else { ?>
+				<span class="pager-page disabled"><?=$page?></span>
+			<?php } ?>
+		<?php } ?>
+		<?php if ($model->pager->hasNext) { ?>
+			<span class="pager-next"><a href="javascript:void(0);" onclick="Search.Go(<?=$model->pager->page+1?>);">&gt;</a></span>
+			<span class="pager-last"><a href="javascript:void(0);" onclick="Search.Go(<?=$model->pager->totalPages?>);">&gt;&gt;</a></span>
+		<?php } ?>
+	</div>
+<?php } ?>
+
+<script type = 'text/javascript'>
+$(function () {	
+	var SelectId; 
+	var SelectName; 
+	var IdList = new Array();
+	var NameList = new Array();
+	
+	$('#lookup').autocomplete({
+		source: "<?=$this->basePath('/ajax?action=ProductionCompanies:search&format=json&limit=15')?>",
+		minLength: 3,
+		select: function(event, ui) {
+			$('#lookup').val(ui.item.label);
+			SelectId = ui.item.id; 
+			SelectName = ui.item.label;
+		},
+		change :function (event, ui) {
+			if (!ui.item) {
+				$(this).val('');			
+			}
+		}			
+	});
+	
+    $('#checkall').click(function () {
+		IdList = [];
+		NameList = [];
+        var checked = $(this).is(':checked');            
+        $('.checker').each(function () {
+            var Box = $(this);               
+            if (checked) {
+                Box.prop('checked', true);
+				var boxid = Box.attr('id');
+				var boxarray = boxid.split("%%");				
+				
+				IdList.push(boxarray[0]);
+				NameList.push(boxarray[1]);					
+            }
+			
+            else {
+                Box.prop('checked', false);                
+            }		
+        });	
+    });
+		
+	$('.checker').click(function(){	
+	
+		if ($(this).prop('checked')){		
+			var boxid = $(this).attr('id');
+			var boxarray = boxid.split("%%");			
+			IdList.push(boxarray[0]);
+			NameList.push(boxarray[1]);	
+		}
+	
+		else {
+			var boxid = $(this).attr('id');
+			var boxarray = boxid.split("%%");	
+			var idindex = IdList.indexOf(boxarray[0]);
+			if (idindex > -1) {
+				IdList.splice(idindex, 1); 
+			}
+
+			var nameindex = NameList.indexOf(boxarray[1]);
+			if (nameindex >-1) {
+				NameList.splice(nameindex, 1);
+			}				
+		}	
+	});
+	
+	$('#rename').click(function(){
+		if(!$('#lookup').val())	{
+			alert("Please select a company name from suggested list");
+			return false;
+		}	
+	
+		$.ajax({
+			type: 'POST',
+			url: '<?=$this->basePath('/ajax?action=ProductionCompanies:renameForAdmin')?>',
+			data: {
+				'IdList': IdList,
+				'NameList': NameList,
+				'SelectId': SelectId,
+				'SelectName': SelectName			
+			},
+			success: function(res){			
+			alert('Company names successfully merged.');
+			location.reload();			
+			}
+		});
+	});	
+});
+</script>
